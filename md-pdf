@@ -2,7 +2,7 @@
 
 set -e
 
-DOCKER_IMG=report-pandoc
+DOCKER_IMG=md-pdf
 DATE_FMT=%s
 
 build() {
