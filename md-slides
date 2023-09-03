@@ -119,7 +119,11 @@ time (
 	"hedgedoc")
 		echo "https://hedgedoc.cri.epita.fr/$file"
 		out_name=$(curl -s "https://hedgedoc.cri.epita.fr/$file/info" | jq -r .title | sed -e 's/[][$\/\]//g' -e 's/ /_/g' -e 's/$/\.pdf/')
-		curl -s "https://hedgedoc.cri.epita.fr/$file/download" | run -o "$out_name" "$@"
+		last_edit=$(curl -s "https://hedgedoc.cri.epita.fr/$file/info" | jq -r .updatetime)
+        if [ "$(date -d "$last_edit" +'%s')" -gt "$(date -r "$out_name" +'%s')" ]; then
+            curl -s "https://hedgedoc.cri.epita.fr/$file/download" | run -o "$out_name" "$@"
+            touch -d "$last_edit" "$out_name"
+        fi
 		;;
 	esac
 )
