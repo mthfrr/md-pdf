@@ -3,10 +3,9 @@
 set -e
 
 DOCKER_IMG=md-pdf
-DATE_FMT=%s
 
 build() {
-    DOCKER_BUILDKIT=1 docker build -t $DOCKER_IMG - << EOF
+	DOCKER_BUILDKIT=1 docker build -t $DOCKER_IMG - <<EOF
         FROM pandoc/latex:3.1.1.0
         RUN <<TLMGR
             tlmgr install \
@@ -55,54 +54,56 @@ EOF
 }
 
 # Rebuild if needed
-docker inspect $DOCKER_IMG > /dev/null 2> /dev/null || build
-[ "$(date -d $(docker inspect -f '{{json .Metadata.LastTagTime }}' $DOCKER_IMG | tr -d '"') +'%s')" -lt "$(date -r $0 +'%s')" ] && build || true
+docker inspect $DOCKER_IMG >/dev/null 2>/dev/null || build
+[ "$(date -d $(docker inspect -f '{{json .Metadata.LastTagTime }}' $DOCKER_IMG | tr -d '"') +'%s')" -lt "$(date -r $0 +'%s')" ] && build
 
 SOURCE_FORMAT="markdown"
 
 run() {
-    mkdir -p /tmp/dot_cache
-    docker run --rm -i \
-        -v .:/data -v /tmp/dot_cache:/tmp\
-        -u $(id -u):$(id -g) \
-        $DOCKER_IMG \
-        -f "$SOURCE_FORMAT" -t beamer \
-        --data-dir /pandoc \
-        -V theme:metropolis \
-        -V themeoptions:block=fill \
-        -V diagram.cache:true \
-        -V diagram.cache-dir:/tmp \
-        --lua-filter diagram.lua \
-        $@
-        #-V geometry:a4paper \
-        #-V geometry:margin=3cm \
-        #-V titlepage:true \
+	mkdir -p /tmp/dot_cache
+	docker run --rm -i \
+		-v .:/data \
+		-v /tmp/dot_cache:/tmp \
+		-u "$(id -u):$(id -g)" \
+		$DOCKER_IMG \
+		-f "$SOURCE_FORMAT" -t beamer \
+		--data-dir /pandoc \
+		-V theme:metropolis \
+		-V themeoptions:block=fill \
+		-V diagram.cache:true \
+		-V diagram.cache-dir:/tmp \
+		--lua-filter diagram.lua \
+		"$@"
+	#-V geometry:a4paper \
+	#-V geometry:margin=3cm \
+	#-V titlepage:true \
 
-    # docker exec -it container-name sh
+	# docker exec -it container-name sh
 }
 
 show_help() {
-    echo "Usage $0 [-h] [-m] file [other options]"
-    echo " -h: show help"
-    echo " -m: file is an HedgeDoc id"
+	echo "Usage $0 [-h] [-m] file [other options]"
+	echo " -h: show help"
+	echo " -m: file is an HedgeDoc id"
 }
 
 # handle options
 OPTIND=1
 
-
 file_type="file"
 while getopts "h?m" opt; do
-  case "$opt" in
-    h|\?)
-      show_help
-      exit 0
-      ;;
-    m)  file_type="hedgedoc"
-      ;;
-  esac
+	case "$opt" in
+	h | \?)
+		show_help
+		exit 0
+		;;
+	m)
+		file_type="hedgedoc"
+		;;
+	esac
 done
-shift $((OPTIND-1))
+
+shift $((OPTIND - 1))
 [ "${1:-}" = "--" ] && shift
 [ $# -eq 0 ] && show_help && exit 1
 
@@ -110,15 +111,15 @@ file=$1
 shift
 
 time (
-case "$file_type" in
-    "file")
-        echo "$file"
-        run "$file" $@
-        ;;
-    "hedgedoc")
-        echo "https://hedgedoc.cri.epita.fr/$file"
-        out_name=$(curl -s "https://hedgedoc.cri.epita.fr/$file/info" | jq -r .title | sed -e 's/[][$\/\]//g' -e 's/ /_/g' -e 's/$/\.pdf/')
-        curl -s "https://hedgedoc.cri.epita.fr/$file/download" | run -o "$out_name" $@
-        ;;
-esac
+	case "$file_type" in
+	"file")
+		echo "$file"
+		run "$file" "$@"
+		;;
+	"hedgedoc")
+		echo "https://hedgedoc.cri.epita.fr/$file"
+		out_name=$(curl -s "https://hedgedoc.cri.epita.fr/$file/info" | jq -r .title | sed -e 's/[][$\/\]//g' -e 's/ /_/g' -e 's/$/\.pdf/')
+		curl -s "https://hedgedoc.cri.epita.fr/$file/download" | run -o "$out_name" "$@"
+		;;
+	esac
 )
