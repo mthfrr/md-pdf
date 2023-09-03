@@ -58,17 +58,7 @@ EOF
 docker inspect $DOCKER_IMG > /dev/null 2> /dev/null || build
 [ "$(date -d $(docker inspect -f '{{json .Metadata.LastTagTime }}' $DOCKER_IMG | tr -d '"') +'%s')" -lt "$(date -r $0 +'%s')" ] && build || true
 
-SOURCE_FORMAT="markdown_strict\
-+pipe_tables\
-+backtick_code_blocks\
-+auto_identifiers\
-+strikeout\
-+yaml_metadata_block\
-+implicit_figures\
-+all_symbols_escapable\
-+link_attributes\
-+smart\
-+fenced_divs"
+SOURCE_FORMAT="markdown"
 
 run() {
     mkdir -p /tmp/dot_cache
@@ -79,6 +69,7 @@ run() {
         -f "$SOURCE_FORMAT" -t beamer \
         --data-dir /pandoc \
         -V theme:metropolis \
+        -V themeoptions:block=fill \
         -V diagram.cache:true \
         -V diagram.cache-dir:/tmp \
         --lua-filter diagram.lua \
