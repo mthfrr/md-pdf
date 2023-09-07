@@ -54,6 +54,7 @@ TLMGR
         RUN apk add --no-cache graphviz ttf-freefont
         RUN mkdir -p /pandoc/filters
         RUN wget https://raw.githubusercontent.com/pandoc-ext/diagram/main/_extensions/diagram/diagram.lua -O /pandoc/filters/diagram.lua
+        RUN tlmgr install awesomebox fontawesome5
 EOF
 }
 
@@ -66,7 +67,7 @@ run() {
 	docker run --rm -i \
 		-v .:/data -v /tmp/dot_cache:/tmp -u "$(id -u):$(id -g)" \
 		"$DOCKER_IMG" \
-		-f gfm -t pdf \
+		-f markdown -t pdf \
 		--data-dir /pandoc \
 		--template eisvogel \
 		-V geometry:a4paper \
@@ -108,7 +109,7 @@ shift $((OPTIND - 1))
 file=$1
 shift
 
-time (
+(
 	case "$file_type" in
 	"file")
 		echo "$file"
@@ -117,7 +118,11 @@ time (
 	"hedgedoc")
 		echo "https://hedgedoc.cri.epita.fr/$file"
 		out_name=$(curl -s "https://hedgedoc.cri.epita.fr/$file/info" | jq -r .title | sed -e 's/[][$\/\]//g' -e 's/ /_/g' -e 's/$/\.pdf/')
-		curl -s "https://hedgedoc.cri.epita.fr/$file/download" | run -o "$out_name" "$@"
+		last_edit=$(curl -s "https://hedgedoc.cri.epita.fr/$file/info" | jq -r .updatetime)
+		if true || [ ! -f "$out_name" ] || [ "$(date -d "$last_edit" +'%s')" -gt "$(date -r "$out_name" +'%s')" ]; then
+			curl -s "https://hedgedoc.cri.epita.fr/$file/download" | run -o "$out_name" "$@"
+			touch -d "$last_edit" "$out_name"
+		fi
 		;;
 	esac
 )

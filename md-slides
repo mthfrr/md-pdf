@@ -57,8 +57,6 @@ EOF
 docker inspect $DOCKER_IMG >/dev/null 2>/dev/null || build
 [ "$(date -d $(docker inspect -f '{{json .Metadata.LastTagTime }}' $DOCKER_IMG | tr -d '"') +'%s')" -lt "$(date -r $0 +'%s')" ] && build
 
-SOURCE_FORMAT="markdown"
-
 run() {
 	mkdir -p /tmp/dot_cache
 	docker run --rm -i \
@@ -66,7 +64,7 @@ run() {
 		-v /tmp/dot_cache:/tmp \
 		-u "$(id -u):$(id -g)" \
 		$DOCKER_IMG \
-		-f "$SOURCE_FORMAT" -t beamer \
+		-f markdown -t beamer \
 		--data-dir /pandoc \
 		-V theme:metropolis \
 		-V themeoptions:block=fill \
@@ -110,7 +108,7 @@ shift $((OPTIND - 1))
 file=$1
 shift
 
-time (
+(
 	case "$file_type" in
 	"file")
 		echo "$file"
@@ -120,10 +118,10 @@ time (
 		echo "https://hedgedoc.cri.epita.fr/$file"
 		out_name=$(curl -s "https://hedgedoc.cri.epita.fr/$file/info" | jq -r .title | sed -e 's/[][$\/\]//g' -e 's/ /_/g' -e 's/$/\.pdf/')
 		last_edit=$(curl -s "https://hedgedoc.cri.epita.fr/$file/info" | jq -r .updatetime)
-        if [ "$(date -d "$last_edit" +'%s')" -gt "$(date -r "$out_name" +'%s')" ]; then
-            curl -s "https://hedgedoc.cri.epita.fr/$file/download" | run -o "$out_name" "$@"
-            touch -d "$last_edit" "$out_name"
-        fi
+		if [ ! -f "$out_name" ] || [ "$(date -d "$last_edit" +'%s')" -gt "$(date -r "$out_name" +'%s')" ]; then
+			curl -s "https://hedgedoc.cri.epita.fr/$file/download" | run -o "$out_name" "$@"
+			touch -d "$last_edit" "$out_name"
+		fi
 		;;
 	esac
 )
